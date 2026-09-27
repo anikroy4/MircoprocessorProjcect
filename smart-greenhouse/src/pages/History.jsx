@@ -1,10 +1,18 @@
 import { useState, useEffect } from 'react';
+import { Trash2 } from 'lucide-react';
 import Layout from '../components/layout/Layout.jsx';
 import DataTable from '../components/common/DataTable.jsx';
 import DateRangeFilter from '../components/common/DateRangeFilter.jsx';
 import StatusBadge from '../components/common/StatusBadge.jsx';
 import ErrorState from '../components/common/ErrorState.jsx';
-import { getSensorReadings, getActuatorHistory } from '../services/api.js';
+import ConfirmModal from '../components/common/ConfirmModal.jsx';
+import Toast from '../components/common/Toast.jsx';
+import { 
+  getSensorReadings, 
+  getActuatorHistory,
+  deleteSensorReading,
+  deleteActuatorLog
+} from '../services/api.js';
 import { formatTimestamp, formatValue } from '../utils/formatters.js';
 import { DEVICE_LABELS } from '../utils/constants.js';
 
@@ -15,13 +23,16 @@ const TABS = [
 
 // ── Sensor History Tab ────────────────────────────────────────────────────────
 function SensorHistoryTab() {
-  const [data, setData]       = useState([]);
-  const [total, setTotal]     = useState(0);
-  const [page, setPage]       = useState(1);
+  const [data, setData] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState(null);
+  const [error, setError] = useState(null);
   const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo]     = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [toast, setToast] = useState(null);
   const PAGE_SIZE = 15;
 
   const fetchData = async (p, from, to) => {
@@ -38,7 +49,22 @@ function SensorHistoryTab() {
     }
   };
 
-  useEffect(() => { fetchData(page, dateFrom, dateTo); }, [page, dateFrom, dateTo]);
+  useEffect(() => { 
+    fetchData(page, dateFrom, dateTo); 
+  }, [page, dateFrom, dateTo]);
+
+  const handleDelete = async () => {
+    try {
+      await deleteSensorReading(deleteTarget);
+      setToast({ type: 'success', message: 'Sensor reading deleted successfully.' });
+      fetchData(page, dateFrom, dateTo);
+    } catch (err) {
+      setToast({ type: 'error', message: err.message || 'Failed to delete sensor reading.' });
+    } finally {
+      setShowDeleteModal(false);
+      setDeleteTarget(null);
+    }
+  };
 
   const columns = [
     {
@@ -66,6 +92,22 @@ function SensorHistoryTab() {
       label: 'AQI',
       render: (v) => <span className="font-medium">{formatValue(v)}</span>,
     },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (v, row) => (
+        <button
+          onClick={() => {
+            setDeleteTarget(row.id);
+            setShowDeleteModal(true);
+          }}
+          className="text-red-500 hover:text-red-700 p-2 rounded hover:bg-red-50 transition-colors"
+          title="Delete"
+        >
+          <Trash2 size={16} />
+        </button>
+      ),
+    },
   ];
 
   return (
@@ -74,7 +116,7 @@ function SensorHistoryTab() {
         dateFrom={dateFrom}
         dateTo={dateTo}
         onDateFromChange={(v) => { setDateFrom(v); setPage(1); }}
-        onDateToChange={(v)   => { setDateTo(v);   setPage(1); }}
+        onDateToChange={(v) => { setDateTo(v); setPage(1); }}
         onReset={() => { setDateFrom(''); setDateTo(''); setPage(1); }}
       />
       {error && <ErrorState message={error} onRetry={() => fetchData(page, dateFrom, dateTo)} compact />}
@@ -87,20 +129,44 @@ function SensorHistoryTab() {
         onPageChange={setPage}
         loading={loading}
       />
+      {showDeleteModal && (
+        <ConfirmModal
+          isOpen={showDeleteModal}
+          title="Delete Sensor Reading"
+          message="Are you sure you want to delete this sensor reading? This action cannot be undone."
+          confirmLabel="Delete"
+          variant="danger"
+          onConfirm={handleDelete}
+          onCancel={() => {
+            setShowDeleteModal(false);
+            setDeleteTarget(null);
+          }}
+        />
+      )}
+      {toast && (
+        <Toast
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }
 
 // ── Actuator History Tab ──────────────────────────────────────────────────────
 function ActuatorHistoryTab() {
-  const [data, setData]             = useState([]);
-  const [total, setTotal]           = useState(0);
-  const [page, setPage]             = useState(1);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState(null);
-  const [dateFrom, setDateFrom]     = useState('');
-  const [dateTo, setDateTo]         = useState('');
+  const [data, setData] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [deviceFilter, setDeviceFilter] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [toast, setToast] = useState(null);
   const PAGE_SIZE = 15;
 
   const fetchData = async (p, from, to, device) => {
@@ -117,9 +183,23 @@ function ActuatorHistoryTab() {
     }
   };
 
-  useEffect(() => { fetchData(page, dateFrom, dateTo, deviceFilter); }, [page, dateFrom, dateTo, deviceFilter]);
+  useEffect(() => { 
+    fetchData(page, dateFrom, dateTo, deviceFilter); 
+  }, [page, dateFrom, dateTo, deviceFilter]);
 
-  // Only show the 3 remaining actuators in the filter dropdown
+  const handleDelete = async () => {
+    try {
+      await deleteActuatorLog(deleteTarget);
+      setToast({ type: 'success', message: 'Actuator log deleted successfully.' });
+      fetchData(page, dateFrom, dateTo, deviceFilter);
+    } catch (err) {
+      setToast({ type: 'error', message: err.message || 'Failed to delete actuator log.' });
+    } finally {
+      setShowDeleteModal(false);
+      setDeleteTarget(null);
+    }
+  };
+
   const filteredDeviceLabels = Object.entries(DEVICE_LABELS).filter(
     ([key]) => key !== 'shade_motor'
   );
@@ -158,6 +238,22 @@ function ActuatorHistoryTab() {
       label: 'Source',
       render: (v) => <span className="text-gray-500 text-xs">{v || '—'}</span>,
     },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (v, row) => (
+        <button
+          onClick={() => {
+            setDeleteTarget(row.id);
+            setShowDeleteModal(true);
+          }}
+          className="text-red-500 hover:text-red-700 p-2 rounded hover:bg-red-50 transition-colors"
+          title="Delete"
+        >
+          <Trash2 size={16} />
+        </button>
+      ),
+    },
   ];
 
   return (
@@ -167,7 +263,7 @@ function ActuatorHistoryTab() {
           dateFrom={dateFrom}
           dateTo={dateTo}
           onDateFromChange={(v) => { setDateFrom(v); setPage(1); }}
-          onDateToChange={(v)   => { setDateTo(v);   setPage(1); }}
+          onDateToChange={(v) => { setDateTo(v); setPage(1); }}
           onReset={() => { setDateFrom(''); setDateTo(''); setPage(1); }}
         />
         <select
@@ -197,6 +293,27 @@ function ActuatorHistoryTab() {
         onPageChange={setPage}
         loading={loading}
       />
+      {showDeleteModal && (
+        <ConfirmModal
+          isOpen={showDeleteModal}
+          title="Delete Actuator Log"
+          message="Are you sure you want to delete this actuator log? This action cannot be undone."
+          confirmLabel="Delete"
+          variant="danger"
+          onConfirm={handleDelete}
+          onCancel={() => {
+            setShowDeleteModal(false);
+            setDeleteTarget(null);
+          }}
+        />
+      )}
+      {toast && (
+        <Toast
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }
@@ -224,7 +341,7 @@ export default function History() {
           ))}
         </div>
 
-        {activeTab === 'sensors'   && <SensorHistoryTab />}
+        {activeTab === 'sensors' && <SensorHistoryTab />}
         {activeTab === 'actuators' && <ActuatorHistoryTab />}
       </div>
     </Layout>

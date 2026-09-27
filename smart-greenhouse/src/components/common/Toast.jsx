@@ -84,3 +84,25 @@ export function useToast() {
   if (!ctx) throw new Error('useToast must be used inside ToastProvider');
   return ctx;
 }
+
+// ── Standalone Toast Component (for direct usage without Provider) ──────────
+export default function Toast({ type = 'info', message, title, onClose }) {
+  const Icon = ICONS[type] || Info;
+
+  return (
+    <div className="fixed bottom-4 right-4 z-50 pointer-events-auto">
+      <div
+        className={`flex items-start gap-3 p-4 rounded-xl border shadow-lg max-w-sm w-full transition-all duration-300 ${STYLES[type]}`}
+      >
+        <Icon size={18} className={`flex-shrink-0 mt-0.5 ${ICON_STYLES[type]}`} />
+        <div className="flex-1 min-w-0">
+          {title && <p className="font-semibold text-sm mb-0.5">{title}</p>}
+          <p className="text-sm">{message}</p>
+        </div>
+        <button onClick={onClose} className="flex-shrink-0 opacity-60 hover:opacity-100">
+          <X size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}

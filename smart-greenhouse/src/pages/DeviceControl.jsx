@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Droplets, Wind, Thermometer } from 'lucide-react';
+import { Droplets, Wind, Thermometer, Lightbulb } from 'lucide-react';
 import Layout from '../components/layout/Layout.jsx';
 import DeviceCard from '../components/actuators/DeviceCard.jsx';
 import ConfirmModal from '../components/common/ConfirmModal.jsx';
@@ -12,18 +12,21 @@ const DEVICE_ICONS = {
   water_pump:      Droplets,
   cooling_fan:     Thermometer,
   ventilation_fan: Wind,
+  light:           Lightbulb,
 };
 
 const DEVICE_ICON_BG = {
   water_pump:      'bg-blue-100',
   cooling_fan:     'bg-red-100',
   ventilation_fan: 'bg-teal-100',
+  light:           'bg-yellow-100',
 };
 
 const DEVICE_ICON_COLOR = {
   water_pump:      'text-blue-600',
   cooling_fan:     'text-red-500',
   ventilation_fan: 'text-teal-600',
+  light:           'text-yellow-600',
 };
 
 export default function DeviceControl() {
@@ -43,6 +46,24 @@ export default function DeviceControl() {
 
   const handleTurnOff = async (device) => {
     await executeCommand(device, 'OFF');
+  };
+
+  const handleSetAuto = async (device) => {
+    try {
+      await sendCommand(device, 'AUTO', 'AUTO', null);
+      addToast({
+        type:    'success',
+        title:   'Mode Changed',
+        message: `${DEVICE_LABELS[device] || device} switched to AUTO mode. Device will be controlled by automation rules.`,
+      });
+    } catch (err) {
+      addToast({
+        type:     'error',
+        title:    'Control Failed',
+        message:  err.message || `Failed to set AUTO mode for ${DEVICE_LABELS[device] || device}.`,
+        duration: 6000,
+      });
+    }
   };
 
   const executeCommand = async (device, action, value) => {
@@ -70,14 +91,14 @@ export default function DeviceControl() {
     await executeCommand(device, action, value);
   };
 
-  const controlledDevices = [DEVICES.WATER_PUMP, DEVICES.COOLING_FAN, DEVICES.VENTILATION_FAN];
+  const controlledDevices = [DEVICES.WATER_PUMP, DEVICES.COOLING_FAN, DEVICES.VENTILATION_FAN, DEVICES.LIGHT];
 
   return (
     <Layout title="Device Control" subtitle="Manual actuator control — commands routed via backend API">
       <div className="space-y-6 max-w-4xl">
         {/* Info banner */}
         <div className="bg-blue-50 border border-blue-200 rounded-2xl px-5 py-3.5 flex items-start gap-3">
-          <span className="text-blue-500 mt-0.5 flex-shrink-0">ℹ</span>
+          <span className="text-blue-500 mt-0.5 shrink-0">ℹ</span>
           <div>
             <p className="text-blue-800 text-sm font-medium">Manual Control Mode</p>
             <p className="text-blue-600 text-xs mt-0.5">
@@ -102,6 +123,7 @@ export default function DeviceControl() {
                 iconColor={DEVICE_ICON_COLOR[deviceKey]}
                 onTurnOn={() => handleTurnOn(deviceKey)}
                 onTurnOff={() => handleTurnOff(deviceKey)}
+                onSetAuto={() => handleSetAuto(deviceKey)}
                 isControlling={controlling === deviceKey}
                 loading={loading}
               />

@@ -41,11 +41,12 @@ async function initDb() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
-    // Seed the four actuators (INSERT IGNORE keeps existing rows intact)
+    // Seed the actuators (INSERT IGNORE keeps existing rows intact)
     const defaultActuators = [
       ['water_pump',      'OFF', 'AUTO', null],
       ['cooling_fan',     'OFF', 'AUTO', null],
       ['ventilation_fan', 'OFF', 'AUTO', null],
+      ['light',           'OFF', 'AUTO', null],
       ['shade_motor',     'OFF', 'AUTO', 0],
     ];
     for (const [device, status, mode, value] of defaultActuators) {

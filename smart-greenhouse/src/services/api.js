@@ -75,6 +75,21 @@ export async function getSensorReadings({ page = 1, pageSize = 15, dateFrom = ''
   return request('GET', `/sensors/readings?${params}`, null, signal);
 }
 
+/**
+ * DELETE /api/sensors/:id — delete single sensor reading
+ */
+export async function deleteSensorReading(id) {
+  return request('DELETE', `/sensors/${id}`);
+}
+
+/**
+ * DELETE /api/sensors — bulk delete sensor readings
+ * Body: { ids: [1, 2, 3] }
+ */
+export async function bulkDeleteSensorReadings(ids) {
+  return request('DELETE', '/sensors', { ids });
+}
+
 // ─── Actuators ───────────────────────────────────────────────────────────────
 
 /**
@@ -105,6 +120,21 @@ export async function getActuatorHistory({ page = 1, pageSize = 15, device = '',
   if (dateFrom) params.set('dateFrom', dateFrom);
   if (dateTo) params.set('dateTo', dateTo);
   return request('GET', `/actuators/history?${params}`, null, signal);
+}
+
+/**
+ * DELETE /api/actuators/history/:id — delete single actuator log
+ */
+export async function deleteActuatorLog(id) {
+  return request('DELETE', `/actuators/history/${id}`);
+}
+
+/**
+ * DELETE /api/actuators/history — bulk delete actuator logs
+ * Body: { ids: [1, 2, 3] }
+ */
+export async function bulkDeleteActuatorLogs(ids) {
+  return request('DELETE', '/actuators/history', { ids });
 }
 
 // ─── Settings / Automation ───────────────────────────────────────────────────

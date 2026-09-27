@@ -106,7 +106,7 @@ function AutomationStatusCard({ sensors, settings }) {
   if (alerts.length === 0) {
     return (
       <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
-        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center shrink-0">
           <Leaf size={16} className="text-green-600" />
         </div>
         <div>

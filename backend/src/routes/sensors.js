@@ -165,4 +165,59 @@ router.post('/', async (req, res) => {
   }
 });
 
+// ── DELETE /api/sensors/:id (delete single sensor reading) ───────────────────
+router.delete('/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!id || id <= 0) {
+    return res.status(400).json({ error: 'Invalid sensor reading ID.' });
+  }
+
+  try {
+    const [result] = await pool.query(
+      `DELETE FROM sensor_readings WHERE id = ?`,
+      [id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Sensor reading not found.' });
+    }
+
+    res.json({ success: true, message: 'Sensor reading deleted successfully.' });
+  } catch (err) {
+    console.error('[sensors DELETE]', err.message);
+    res.status(500).json({ error: 'Database error: ' + err.message });
+  }
+});
+
+// ── DELETE /api/sensors/bulk (delete multiple sensor readings) ───────────────
+router.delete('/', async (req, res) => {
+  const { ids } = req.body;
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'Request must contain an array of IDs.' });
+  }
+
+  const validIds = ids.filter((id) => Number.isInteger(id) && id > 0);
+  if (validIds.length === 0) {
+    return res.status(400).json({ error: 'No valid IDs provided.' });
+  }
+
+  try {
+    const placeholders = validIds.map(() => '?').join(',');
+    const [result] = await pool.query(
+      `DELETE FROM sensor_readings WHERE id IN (${placeholders})`,
+      validIds
+    );
+
+    res.json({
+      success: true,
+      message: `${result.affectedRows} sensor reading(s) deleted successfully.`,
+      deletedCount: result.affectedRows,
+    });
+  } catch (err) {
+    console.error('[sensors bulk DELETE]', err.message);
+    res.status(500).json({ error: 'Database error: ' + err.message });
+  }
+});
+
 module.exports = router;

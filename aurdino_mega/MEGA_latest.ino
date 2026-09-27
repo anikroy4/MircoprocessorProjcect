@@ -65,11 +65,23 @@ int lcdScreenIndex = 0;
 // Non-blocking serial command buffer
 String megaRxBuffer = "";
 
+// Forward declarations
+void readSensorsAndApplyAutomation();
+void sendTelemetryToESP8266();
+
 // ── Handle incoming command / settings from Dashboard (via ESP8266 → Serial1) ───
 void handleIncomingCommand(const String& jsonStr) {
+  Serial.println("[DEBUG] Received command: " + jsonStr);
+  
   StaticJsonDocument<384> doc;
   DeserializationError err = deserializeJson(doc, jsonStr);
-  if (err) return;
+  if (err) {
+    Serial.print("[ERROR] JSON parse failed: ");
+    Serial.println(err.c_str());
+    return;
+  }
+
+  Serial.println("[DEBUG] JSON parsed successfully");
 
   // 1. Actuator Manual Override Command
   if (doc.containsKey("device")) {
@@ -78,12 +90,23 @@ void handleIncomingCommand(const String& jsonStr) {
     const char* mode   = doc["mode"] | "MANUAL";
     bool isAuto = (mode != NULL && strcmp(mode, "AUTO") == 0);
 
+    Serial.print("[DEBUG] Device: ");
+    Serial.print(device);
+    Serial.print(" | Action: ");
+    Serial.print(action);
+    Serial.print(" | Mode: ");
+    Serial.println(mode);
+
     if (device != NULL) {
       if (strcmp(device, "water_pump") == 0 || strcmp(device, "pump") == 0) {
         pumpManualMode = !isAuto;
         if (!isAuto && action != NULL) {
           pumpState = (strcmp(action, "ON") == 0);
           digitalWrite(pumpRelayPin, pumpState ? RELAY_ON : RELAY_OFF);
+          Serial.print("[Mega Actuator] ✅ Pump manual set to: ");
+          Serial.println(pumpState ? "ON" : "OFF");
+        } else if (isAuto) {
+          Serial.println("[Mega Actuator] ✅ Pump restored to AUTO mode");
         }
       }
       else if (strcmp(device, "cooling_fan") == 0 ||
@@ -93,6 +116,10 @@ void handleIncomingCommand(const String& jsonStr) {
         if (!isAuto && action != NULL) {
           fanState = (strcmp(action, "ON") == 0);
           digitalWrite(fanRelayPin, fanState ? RELAY_ON : RELAY_OFF);
+          Serial.print("[Mega Actuator] ✅ Cooling Fan manual set to: ");
+          Serial.println(fanState ? "ON" : "OFF");
+        } else if (isAuto) {
+          Serial.println("[Mega Actuator] ✅ Cooling Fan restored to AUTO mode");
         }
       }
       else if (strcmp(device, "light") == 0 || strcmp(device, "heater") == 0) {
@@ -100,7 +127,15 @@ void handleIncomingCommand(const String& jsonStr) {
         if (!isAuto && action != NULL) {
           lightState = (strcmp(action, "ON") == 0);
           digitalWrite(lightRelayPin, lightState ? RELAY_ON : RELAY_OFF);
+          Serial.print("[Mega Actuator] ✅ Light/Heater manual set to: ");
+          Serial.println(lightState ? "ON" : "OFF");
+        } else if (isAuto) {
+          Serial.println("[Mega Actuator] ✅ Light/Heater restored to AUTO mode");
         }
+      }
+      else {
+        Serial.print("[ERROR] Unknown device: ");
+        Serial.println(device);
       }
     }
   }
@@ -122,15 +157,21 @@ void handleIncomingCommand(const String& jsonStr) {
     airQualityThreshold = doc["air_quality_threshold"].as<int>();
   }
 
-  Serial.println("[Mega Settings] Updated from ESP8266.");
+  Serial.println("[Mega Settings] Processed command payload.");
+  readSensorsAndApplyAutomation();
+  sendTelemetryToESP8266();
 }
 
 void checkIncomingSerial() {
+  // TEMPORARY: Check both Serial1 (ESP8266) AND Serial (USB) for testing
+  
+  // Check Serial1 (from ESP8266 Pin 19 RX1)
   while (Serial1.available() > 0) {
     char c = (char)Serial1.read();
     if (c == '\n') {
       megaRxBuffer.trim();
       if (megaRxBuffer.length() > 2) {
+        Serial.println("[Serial1 RX] " + megaRxBuffer); // Debug
         handleIncomingCommand(megaRxBuffer);
       }
       megaRxBuffer = "";
@@ -138,6 +179,25 @@ void checkIncomingSerial() {
       megaRxBuffer += c;
       if (megaRxBuffer.length() > 500) {
         megaRxBuffer = "";
+      }
+    }
+  }
+
+  // Check USB Serial (from Serial Monitor) - TESTING ONLY
+  static String usbBuffer = "";
+  while (Serial.available() > 0) {
+    char c = (char)Serial.read();
+    if (c == '\n') {
+      usbBuffer.trim();
+      if (usbBuffer.length() > 2) {
+        Serial.println("[USB RX] " + usbBuffer); // Debug
+        handleIncomingCommand(usbBuffer);
+      }
+      usbBuffer = "";
+    } else if (c != '\r') {
+      usbBuffer += c;
+      if (usbBuffer.length() > 500) {
+        usbBuffer = "";
       }
     }
   }
@@ -162,9 +222,15 @@ void readSensorsAndApplyAutomation() {
   if (!isnan(t)) lastTemperature = t;
   if (!isnan(h)) lastHumidity    = h;
 
-  // ── Automation 1: Soil Moisture Control (with Hysteresis) ──
+  // ── Automation 1: Soil Moisture Control (with Zero Check) ──
   if (!pumpManualMode) {
-    if (lastSoilPercent < soilMinThreshold) {
+    // Special case: if soil moisture is exactly 0, force pump ON immediately
+    if (lastSoilPercent <= 0.5) {  // Consider 0-0.5% as zero (sensor tolerance)
+      pumpState = true;
+      Serial.println("[Mega AUTO] Soil = 0% → EMERGENCY watering ON!");
+    }
+    // Normal hysteresis logic
+    else if (lastSoilPercent < soilMinThreshold) {
       pumpState = true;  // Soil dry → pump ON
     } else if (lastSoilPercent > soilMaxThreshold) {
       pumpState = false; // Soil hydrated → pump OFF
@@ -175,6 +241,7 @@ void readSensorsAndApplyAutomation() {
   // ── Automation 2 & 3: Temperature & Climate Control ────────
   if (!isnan(lastTemperature)) {
     if (lastTemperature > highTempThreshold) {
+      // Hot temperature → cooling fan ON, light OFF
       if (!fanManualMode) {
         fanState = true;
         digitalWrite(fanRelayPin, RELAY_ON);
@@ -185,22 +252,25 @@ void readSensorsAndApplyAutomation() {
       }
     }
     else if (lastTemperature < lowTempThreshold) {
+      // Low temperature → light ON for heating
       if (!lightManualMode) {
         lightState = true;
         digitalWrite(lightRelayPin, RELAY_ON);
+        Serial.println("[Mega AUTO] Low temp → Light ON for heating");
       }
       if (!fanManualMode) {
-        fanState = airBad;
+        fanState = airBad;  // Only run fan if air quality is bad
         digitalWrite(fanRelayPin, airBad ? RELAY_ON : RELAY_OFF);
       }
     }
     else {
+      // Normal temperature range → light OFF
       if (!lightManualMode) {
         lightState = false;
         digitalWrite(lightRelayPin, RELAY_OFF);
       }
       if (!fanManualMode) {
-        fanState = airBad;
+        fanState = airBad;  // Only run fan for air quality
         digitalWrite(fanRelayPin, airBad ? RELAY_ON : RELAY_OFF);
       }
     }
@@ -305,4 +375,3 @@ void loop() {
 
   updateLcdDisplay();
 }
-

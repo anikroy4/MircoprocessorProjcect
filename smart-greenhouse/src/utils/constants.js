@@ -3,12 +3,14 @@ export const DEVICES = {
   WATER_PUMP:      'water_pump',
   COOLING_FAN:     'cooling_fan',
   VENTILATION_FAN: 'ventilation_fan',
+  LIGHT:           'light',
 };
 
 export const DEVICE_LABELS = {
   water_pump:      'Water Pump',
   cooling_fan:     'Cooling Fan',
   ventilation_fan: 'Ventilation Fan',
+  light:           'Grow Light',
 };
 
 // Sensor types
@@ -48,6 +50,15 @@ export const ANALYTICS_RANGES = [
   { label: '30 Days', value: '30d' },
 ];
 
+// Default Thresholds
+export const DEFAULT_THRESHOLDS = {
+  soil_min: 30,
+  soil_max: 70,
+  temperature_low: 25,
+  temperature_high: 35,
+  air_quality_threshold: 70,
+};
+
 // Status colors (Tailwind classes)
 export const STATUS_COLORS = {
   online: 'text-green-600 bg-green-50 border-green-200',
@@ -67,26 +78,5 @@ export const CHART_COLORS = {
   air_quality:  '#6b7280',
 };
 
-// Default thresholds (overridden by API settings)
-export const DEFAULT_THRESHOLDS = {
-  soil_min:              30,
-  soil_max:              70,
-  temperature_high:      35,
-  temperature_low:       30,
-  humidity_high:         90,
-  air_quality_threshold: 70,
-};
-
-// Navigation items
-export const NAV_ITEMS = [
-  { path: '/dashboard', label: 'Dashboard', icon: 'LayoutDashboard' },
-  { path: '/monitoring', label: 'Live Monitoring', icon: 'Activity' },
-  { path: '/control', label: 'Device Control', icon: 'Sliders' },
-  { path: '/automation', label: 'Automation', icon: 'Cpu' },
-  { path: '/analytics', label: 'Analytics', icon: 'BarChart2' },
-  { path: '/history', label: 'History', icon: 'History' },
-  { path: '/system', label: 'System Status', icon: 'Server' },
-  { path: '/settings', label: 'Settings', icon: 'Settings' },
-];
-
+// Polling interval (milliseconds)
 export const POLL_INTERVAL = parseInt(import.meta.env.VITE_POLL_INTERVAL || '5000', 10);

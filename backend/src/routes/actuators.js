@@ -198,4 +198,59 @@ router.post('/esp-update', async (req, res) => {
   }
 });
 
+// ── DELETE /api/actuators/history/:id (delete single log) ────────────────────
+router.delete('/history/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!id || id <= 0) {
+    return res.status(400).json({ error: 'Invalid log ID.' });
+  }
+
+  try {
+    const [result] = await pool.query(
+      `DELETE FROM actuator_logs WHERE id = ?`,
+      [id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Actuator log not found.' });
+    }
+
+    res.json({ success: true, message: 'Actuator log deleted successfully.' });
+  } catch (err) {
+    console.error('[actuators/history DELETE]', err.message);
+    res.status(500).json({ error: 'Database error: ' + err.message });
+  }
+});
+
+// ── DELETE /api/actuators/history (bulk delete logs) ──────────────────────────
+router.delete('/history', async (req, res) => {
+  const { ids } = req.body;
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'Request must contain an array of IDs.' });
+  }
+
+  const validIds = ids.filter((id) => Number.isInteger(id) && id > 0);
+  if (validIds.length === 0) {
+    return res.status(400).json({ error: 'No valid IDs provided.' });
+  }
+
+  try {
+    const placeholders = validIds.map(() => '?').join(',');
+    const [result] = await pool.query(
+      `DELETE FROM actuator_logs WHERE id IN (${placeholders})`,
+      validIds
+    );
+
+    res.json({
+      success: true,
+      message: `${result.affectedRows} actuator log(s) deleted successfully.`,
+      deletedCount: result.affectedRows,
+    });
+  } catch (err) {
+    console.error('[actuators/history bulk DELETE]', err.message);
+    res.status(500).json({ error: 'Database error: ' + err.message });
+  }
+});
+
 module.exports = router;

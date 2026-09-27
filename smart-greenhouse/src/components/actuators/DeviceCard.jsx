@@ -1,4 +1,4 @@
-import { Loader2, Power, PowerOff } from 'lucide-react';
+import { Loader2, Power, PowerOff, Settings } from 'lucide-react';
 import StatusBadge from '../common/StatusBadge.jsx';
 import { formatRelativeTime } from '../../utils/formatters.js';
 import { DEVICE_LABELS } from '../../utils/constants.js';
@@ -10,6 +10,7 @@ export default function DeviceCard({
   iconColor = 'text-green-600',
   onTurnOn,
   onTurnOff,
+  onSetAuto,
   isControlling = false,
   loading = false,
 }) {
@@ -83,9 +84,9 @@ export default function DeviceCard({
       <div className="flex gap-2">
         <button
           onClick={onTurnOn}
-          disabled={isControlling || isOn}
+          disabled={isControlling || (isOn && !isAuto)}
           className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-            isOn
+            isOn && !isAuto
               ? 'bg-green-600 text-white shadow-sm shadow-green-200 cursor-default'
               : 'bg-green-50 text-green-700 hover:bg-green-600 hover:text-white border border-green-200'
           } disabled:opacity-60 disabled:cursor-not-allowed`}
@@ -95,9 +96,9 @@ export default function DeviceCard({
         </button>
         <button
           onClick={onTurnOff}
-          disabled={isControlling || !isOn}
+          disabled={isControlling}
           className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-            !isOn
+            !isOn && !isAuto
               ? 'bg-gray-200 text-gray-600 cursor-default'
               : 'bg-gray-100 text-gray-700 hover:bg-red-600 hover:text-white border border-gray-200'
           } disabled:opacity-60 disabled:cursor-not-allowed`}
@@ -106,6 +107,18 @@ export default function DeviceCard({
           OFF
         </button>
       </div>
+
+      {/* AUTO Mode Button */}
+      {!isAuto && (
+        <button
+          onClick={onSetAuto}
+          disabled={isControlling}
+          className="w-full mt-2 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white border border-blue-200 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          <Settings size={14} />
+          SET AUTO
+        </button>
+      )}
     </div>
   );
 }

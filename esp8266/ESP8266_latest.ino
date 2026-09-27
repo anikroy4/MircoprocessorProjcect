@@ -28,7 +28,7 @@
 // ── Wi-Fi & Backend Configuration ────────────────────────────
 const char* WIFI_SSID     = "Roy";
 const char* WIFI_PASSWORD = "Blackdevil0007";
-const char* BACKEND_HOST  = "192.168.68.109";
+const char* BACKEND_HOST  = "192.168.68.103";   // আপনার পিসির Wi-Fi IP
 const int   BACKEND_PORT  = 5000;
 
 ESP8266WebServer server(80);
@@ -67,7 +67,7 @@ void postSensorData(float temp, float hum, float soil, int airQ) {
   if (code == 200 || code == 201) {
     DEBUG_SERIAL.printf("[POST] ✅ Success (%d)\n", code);
   } else {
-    DEBUG_SERIAL.printf("[POST] ❌ Failed (%s)\n", http.errorToString(code).c_str());
+    DEBUG_SERIAL.printf("[POST] ❌ Failed (%s, code: %d)\n", http.errorToString(code).c_str(), code);
   }
   http.end();
 }
@@ -78,7 +78,8 @@ void postActuatorStates() {
   struct { const char* device; bool state; } actuators[] = {
     {"water_pump",      pumpStatus},
     {"cooling_fan",     fanStatus},
-    {"ventilation_fan", lightStatus},
+    {"ventilation_fan", fanStatus},
+    {"light",           lightStatus},
   };
 
   for (auto& act : actuators) {
@@ -90,7 +91,7 @@ void postActuatorStates() {
     String body = "{\"device\":\"" + String(act.device) + "\",\"status\":\"" + (act.state ? "ON" : "OFF") + "\",\"mode\":\"AUTO\"}";
     http.POST(body);
     http.end();
-    delay(30);
+    delay(20);
   }
 }
 
@@ -139,7 +140,8 @@ void handleStatus() {
   JsonObject a = doc.createNestedObject("actuators");
   a["water_pump"]      = pumpStatus  ? "ON" : "OFF";
   a["cooling_fan"]     = fanStatus   ? "ON" : "OFF";
-  a["ventilation_fan"] = lightStatus ? "ON" : "OFF";
+  a["ventilation_fan"] = fanStatus   ? "ON" : "OFF";
+  a["light"]           = lightStatus ? "ON" : "OFF";
   String r; serializeJson(doc, r);
   server.send(200, "application/json", r);
 }
@@ -166,22 +168,30 @@ void handleSettings() {
   server.send(200, "application/json", "{\"success\":true}");
 }
 
-void processArduinoData(const String& line) {
-  if (!line.startsWith("{") || !line.endsWith("}")) return;
+void processArduinoData(String line) {
+  line.trim();
+  int startIdx = line.lastIndexOf('{');
+  int endIdx   = line.lastIndexOf('}');
+  if (startIdx == -1 || endIdx == -1 || startIdx >= endIdx) return;
+  line = line.substring(startIdx, endIdx + 1);
 
   DEBUG_SERIAL.println("[Mega→] " + line);
 
   StaticJsonDocument<384> doc;
-  if (deserializeJson(doc, line)) return;
+  DeserializationError err = deserializeJson(doc, line);
+  if (err) {
+    DEBUG_SERIAL.printf("[JSON Err] %s\n", err.c_str());
+    return;
+  }
 
-  currentTemp       = doc["temperature"]   | currentTemp;
-  currentHumidity   = doc["humidity"]      | currentHumidity;
-  currentSoil       = doc["soil_moisture"] | currentSoil;
-  currentAirQuality = doc["air_quality"]   | currentAirQuality;
-  pumpStatus        = doc["pumpStatus"]    | pumpStatus;
-  fanStatus         = doc["fanStatus"]     | fanStatus;
-  lightStatus       = doc["lightStatus"]   | lightStatus;
-  dataReceived      = true;
+  if (doc.containsKey("temperature"))   currentTemp       = doc["temperature"].as<float>();
+  if (doc.containsKey("humidity"))      currentHumidity   = doc["humidity"].as<float>();
+  if (doc.containsKey("soil_moisture")) currentSoil       = doc["soil_moisture"].as<float>();
+  if (doc.containsKey("air_quality"))   currentAirQuality = doc["air_quality"].as<int>();
+  if (doc.containsKey("pumpStatus"))    pumpStatus        = doc["pumpStatus"].as<bool>();
+  if (doc.containsKey("fanStatus"))     fanStatus         = doc["fanStatus"].as<bool>();
+  if (doc.containsKey("lightStatus"))   lightStatus       = doc["lightStatus"].as<bool>();
+  dataReceived = true;
 
   postSensorData(currentTemp, currentHumidity, currentSoil, currentAirQuality);
   postActuatorStates();
