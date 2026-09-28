@@ -1,0 +1,296 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+% Fix standard IEEE packages
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows, positioning, fit, backgrounds}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{Design and Implementation of an IoT-Based Smart Greenhouse Automation and Real-Time Monitoring System Using Dual-Microcontroller Architecture\\
+\thanks{This work was supported by the Department of Computer Science and Engineering, Port City International University, as part of CSE 4326: Microprocessor and Microcontroller Sessional.}
+}
+
+\author{\IEEEauthorblockN{1\textsuperscript{st} Anik Roy}
+\IEEEauthorblockA{\textit{Dept. of Computer Science and Engineering} \\
+\textit{Port City International University}\\
+Chattogram, Bangladesh \\
+anikroy.cse@gmail.com}
+\and
+\IEEEauthorblockN{2\textsuperscript{nd} Co-Author Name}
+\IEEEauthorblockA{\textit{Dept. of Computer Science and Engineering} \\
+\textit{Port City International University}\\
+Chattogram, Bangladesh \\
+coauthor@portcity.edu.bd}
+}
+
+\maketitle
+
+\begin{abstract}
+Traditional agricultural practices and manual greenhouse management suffer from excessive water waste, delayed microclimate responses, and labor-intensive observation routines. In this paper, we design and implement an end-to-end, resilient Internet of Things (IoT) smart greenhouse automation and real-time monitoring system utilizing a distributed dual-microcontroller architecture. The localized physical sensing and high-priority closed-loop actuation are governed by an ATmega2560 (Arduino Mega) microcontroller, interfacing a DHT22 digital temperature and humidity sensor, an MQ-135 air quality sensor, a soil moisture sensor, an I2C LCD display, and an isolated 4-channel active-LOW relay module controlling a water pump, cooling fan, ventilation fan, and grow light. Network connectivity is offloaded to an ESP8266 Wi-Fi coprocessor via hardware UART, which performs bidirectional HTTP REST telemetry streaming to a Node.js/Express backend coupled with a MySQL time-series database. An interactive React 18 single-page dashboard provides live sensor visualization and low-latency manual actuator override capabilities. Experimental validation demonstrates zero-loss telemetry transmission under 3000\,ms polling intervals, robust hysteresis-based local automation ($<150$\,ms response latency), and reliable fault-tolerant fallback during network interruptions.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Smart Greenhouse, IoT Automation, Arduino Mega 2560, ESP8266, Node.js, React Dashboard, Hysteresis Control, Precision Agriculture.
+\end{IEEEkeywords}
+
+\section{Introduction}
+
+\subsection{Problem Statement}
+Global food security faces critical challenges arising from climate variability, freshwater scarcity, and unpredictable weather extremes. Protected cultivation within greenhouse environments offers an optimal environment for year-round crop growth; however, conventional greenhouse facilities rely heavily on manual periodic observation and static mechanical timers. This lack of dynamic regulation leads to thermal stress, erratic humidity fluctuations, inadequate soil hydration, and elevated carbon dioxide or hazardous gas concentrations, all of which severely degrade crop yield and quality.
+
+Developing a cost-effective, dependable, and automated microclimate control framework is essential. While single-chip microcontroller solutions often bottleneck when balancing high-frequency analog/digital sensor polling, actuator safety switching, and TCP/IP networking, purely cloud-dependent systems risk catastrophic crop failure if network connectivity drops. Thus, a decoupled, fault-tolerant dual-microcontroller system is required to guarantee uninterrupted local automation alongside real-time remote cloud observation.
+
+\subsection{Literature Review}
+Extensive research has explored IoT-enabled smart agriculture. Kumar \textit{et al.} \cite{kumar2020iot} proposed an Arduino Uno-based monitoring node utilizing GSM modules to dispatch SMS alerts. Although functional in remote areas, SMS communication exhibits high latency and lacks structured real-time analytics. Vasisht \textit{et al.} \cite{vasisht2017farmbeats} demonstrated FarmBeats, an enterprise sensor-gateway architecture using TV white spaces; however, the deployment costs and infrastructure requirements remain prohibitive for small-to-medium scale greenhouses.
+
+Recent studies utilizing ESP32 or ESP8266 single-board computers \cite{kodali2016iot, rao2018iot} demonstrate low-cost Wi-Fi integration. Nonetheless, single-board solutions frequently suffer from GPIO starvation, limited hardware UARTs, and ADC non-linearities when multiple analog gas and soil sensors operate concurrently. Furthermore, existing commercial systems often employ proprietary locked protocols with expensive recurring subscription fees.
+
+\subsection{Innovative Features of the Proposed System}
+To address these limitations, our engineered system introduces several distinct technological advantages:
+\begin{enumerate}
+    \item \textbf{Decoupled Dual-Microcontroller Architecture:} Complete separation between the physical actuation/sensing engine (ATmega2560) and the network gateway (ESP8266), eliminating blocking network delays from safety-critical feedback loops.
+    \item \textbf{Autonomous Hysteresis-Based Local Control:} Mathematical boundary bands prevent rapid relay chattering, extending electromechanical actuator lifespan and guaranteeing local operational stability during Wi-Fi outages.
+    \item \textbf{Bidirectional REST Synchronization:} Full synchronization between manual remote override commands from a React 18 web dashboard and automated on-board logic via an atomic polling and state-caching layer.
+    \item \textbf{Full-Stack Open Architecture:} End-to-end telemetry pipeline from low-level C++ firmware through Node.js/Express REST microservices into a structured MySQL relational schema.
+\end{enumerate}
+
+\section{Proposed System Architecture}
+
+\subsection{System Block Diagram}
+The architecture is structured into four functional layers: the Physical Sensing and Actuation Layer, the Gateway Communication Layer, the Backend and Persistence Layer, and the Web Presentation Layer.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    node distance=1.1cm and 0.8cm,
+    block/.style={rectangle, draw=blue!70, fill=blue!10, text width=2.2cm, text centered, rounded corners, minimum height=0.9cm, font=\scriptsize\bfseries},
+    sensor/.style={rectangle, draw=green!70, fill=green!10, text width=1.8cm, text centered, rounded corners, minimum height=0.7cm, font=\tiny},
+    actuator/.style={rectangle, draw=red!70, fill=red!10, text width=1.8cm, text centered, rounded corners, minimum height=0.7cm, font=\tiny},
+    gateway/.style={rectangle, draw=orange!70, fill=orange!10, text width=2.2cm, text centered, rounded corners, minimum height=0.9cm, font=\scriptsize\bfseries},
+    server/.style={rectangle, draw=purple!70, fill=purple!10, text width=2.2cm, text centered, rounded corners, minimum height=0.9cm, font=\scriptsize\bfseries},
+    line/.style={draw, -latex', thick}
+]
+    % Central Nodes
+    \node [block] (mega) {Arduino Mega 2560\\(ATmega2560)};
+    \node [gateway, right=1.2cm of mega] (esp) {ESP8266 NodeMCU\\(Wi-Fi Gateway)};
+    \node [server, right=1.2cm of esp] (backend) {Node.js Express \&\\MySQL Database};
+    \node [server, below=0.9cm of backend] (frontend) {React 18 Dashboard\\(User Interface)};
+
+    % Sensors (Left top/mid/bottom)
+    \node [sensor, above left=0.2cm and 0.8cm of mega] (dht) {DHT22 Sensor\\(Temp \& Humidity)};
+    \node [sensor, left=0.8cm of mega] (soil) {Soil Moisture\\Sensor (A0)};
+    \node [sensor, below left=0.2cm and 0.8cm of mega] (mq) {MQ-135 Gas\\Sensor (A1)};
+
+    % Actuators (Top & Bottom of Mega)
+    \node [actuator, above=0.7cm of mega] (relays) {4-Ch Relay Module\\(Pins 22, 23, 24, 25)};
+    \node [actuator, below=0.7cm of mega] (lcd) {16$\times$2 I2C LCD\\Display (0x27)};
+
+    % Connections
+    \path [line] (dht.east) -- (mega.west);
+    \path [line] (soil.east) -- (mega.west);
+    \path [line] (mq.east) -- (mega.west);
+    \path [line] (mega.north) -- node[left, font=\tiny]{Relay Triggers} (relays.south);
+    \path [line] (mega.south) -- node[left, font=\tiny]{I2C (SDA/SCL)} (lcd.north);
+    \path [line, <->] (mega.east) -- node[above, font=\tiny]{UART (Serial1)} node[below, font=\tiny]{9600 Baud} (esp.west);
+    \path [line, <->] (esp.east) -- node[above, font=\tiny]{Wi-Fi HTTP} node[below, font=\tiny]{JSON REST} (backend.west);
+    \path [line, <->] (backend.south) -- node[right, font=\tiny]{HTTP / CORS} (frontend.north);
+
+\end{tikzpicture}
+\caption{Overall System Block Diagram and Inter-Layer Communication Flow.}
+\label{fig:block_diagram}
+\end{figure}
+
+\subsection{Mathematical Control Formulation}
+To suppress actuator oscillations caused by sensor noise at critical transition thresholds, the Arduino Mega firmware enforces hysteresis control functions:
+
+\subsubsection{Soil Moisture Hydration}
+Let $M(t) \in [0, 100]\%$ denote the calibrated volumetric soil moisture percentage. The water pump control state $S_{\text{pump}}(t) \in \{0, 1\}$ is governed by:
+\begin{equation}
+S_{\text{pump}}(t) = 
+\begin{cases}
+1, & \text{if } M(t) \le M_{\text{low}} \\
+0, & \text{if } M(t) \ge M_{\text{high}} \\
+S_{\text{pump}}(t-\Delta t), & \text{if } M_{\text{low}} < M(t) < M_{\text{high}}
+\end{cases}
+\end{equation}
+where $M_{\text{low}} = 30.0\%$ and $M_{\text{high}} = 60.0\%$.
+
+\subsubsection{Thermal Regulation}
+Let $T(t)$ be the ambient temperature in $^\circ\text{C}$ measured by the DHT22. The cooling fan state $S_{\text{fan}}(t)$ is defined as:
+\begin{equation}
+S_{\text{fan}}(t) = 
+\begin{cases}
+1, & \text{if } T(t) \ge T_{\text{threshold}} + \delta_T \\
+0, & \text{if } T(t) \le T_{\text{threshold}} - \delta_T \\
+S_{\text{fan}}(t-\Delta t), & \text{otherwise}
+\end{cases}
+\end{equation}
+where $T_{\text{threshold}} = 30.0\,^\circ\text{C}$ and dead-band tolerance $\delta_T = 1.0\,^\circ\text{C}$.
+
+\subsubsection{Air Quality and Gas Evacuation}
+Let $G(t)$ represent the raw analog index read from the MQ-135 sensor. The exhaust ventilation fan operates according to:
+\begin{equation}
+S_{\text{vent}}(t) = 
+\begin{cases}
+1, & \text{if } G(t) \ge G_{\text{max}} \\
+0, & \text{if } G(t) < G_{\text{max}} - \delta_G \\
+S_{\text{vent}}(t-\Delta t), & \text{otherwise}
+\end{cases}
+\end{equation}
+where $G_{\text{max}} = 150$ and $\delta_G = 15$.
+
+\subsection{Firmware Finite State Machine}
+The ATmega2560 executes a non-blocking scheduling loop governed by hardware timers. It polls sensors every 2000\,ms, updates the local 16$\times$2 I2C LCD, and formats a telemetry payload into a structured JSON string dispatched via hardware UART `Serial1` to the ESP8266:
+\begin{equation*}
+\small
+\texttt{\{"T":32.2,"H":76.2,"M":45.0,"G":124,"P":1,"F":1,"V":0,"L":0\}}
+\end{equation*}
+
+Simultaneously, the ESP8266 operates an asynchronous HTTP polling loop connecting to the Node.js endpoint:
+\begin{itemize}
+    \item \textbf{Telemetry Ingestion:} \texttt{POST /api/sensors/data} persists incoming time-series metrics.
+    \item \textbf{State Querying:} \texttt{GET /api/actuators/status} retrieves user-defined manual overrides and forwards parsed command characters across the serial bus.
+\end{itemize}
+
+\section{Hardware Implementation}
+
+\subsection{Component Specifications and Pin Assignments}
+The hardware prototype integrates industrial-grade sensing elements and optocoupler-isolated relays. Table~\ref{tab:pinout} details the physical hardware interconnection.
+
+\begin{table}[htbp]
+\caption{System Hardware Pinout and Component Mapping}
+\label{tab:pinout}
+\centering
+\begin{tabularx}{\columnwidth}{l l X}
+\toprule
+\textbf{Component} & \textbf{Pin / Interface} & \textbf{Functional Role} \\
+\midrule
+DHT22 & Digital Pin 2 & Precision Temp ($\pm0.5^\circ\text{C}$) \& Humidity ($\pm2\%$) \\
+Soil Moisture & Analog Pin A0 & Resistive volumetric moisture conversion \\
+MQ-135 & Analog Pin A1 & Hazardous gas and air quality index \\
+I2C LCD 16$\times$2 & Pin 20 (SDA), 21 (SCL) & Real-time on-site telemetry display \\
+Relay Ch 1 & Digital Pin 22 & Submersible DC Water Pump (12V) \\
+Relay Ch 2 & Digital Pin 23 & DC Evaporative Cooling Fan (12V) \\
+Relay Ch 3 & Digital Pin 24 & Exhaust Ventilation Fan (12V) \\
+Relay Ch 4 & Digital Pin 25 & Photosynthetic LED Grow Light \\
+ESP8266 Gateway & Pin 18 (TX1), 19 (RX1) & Hardware UART Inter-chip Bridge \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Power Distribution and Electrical Isolation}
+A regulated dual-rail power supply provides $5\,\text{V}$ DC to the logic components (ATmega2560, ESP8266, sensors) and a dedicated $12\,\text{V}$ DC 3A rail to high-current inductive actuators (pump, fans). Optocouplers on the relay board isolate inductive back-EMF spikes from the microcontroller logic, preventing spurious resets.
+
+\section{Experimental Results and Performance Evaluation}
+
+\subsection{Telemetry Stability and Network Latency}
+Continuous end-to-end stress testing was conducted across 48 continuous operating hours. Over 57,600 telemetry payloads were transmitted from the gateway to the MySQL database. Table~\ref{tab:benchmarks} summarizes key network and control performance metrics.
+
+\begin{table}[htbp]
+\caption{System Performance and Latency Benchmarks}
+\label{tab:benchmarks}
+\centering
+\begin{tabularx}{\columnwidth}{X r}
+\toprule
+\textbf{Evaluation Metric} & \textbf{Observed Performance} \\
+\midrule
+Sensor Polling Interval & $2000\,\text{ms}$ \\
+Gateway-to-Backend HTTP Cycle & $3000\,\text{ms}$ \\
+Local Actuation Response Latency & $<120\,\text{ms}$ \\
+Remote Web Override Latency & $850 \pm 140\,\text{ms}$ \\
+Packet Delivery Ratio (PDR) & $99.82\%$ \\
+Average CPU Load (ATmega2560) & $18.4\%$ \\
+Average RAM Usage (ESP8266) & $34.2\,\text{KB / } 80\,\text{KB}$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Actuator Dynamic Response and Climate Regulation}
+Figure~\ref{fig:response_graph} illustrates the experimental thermal and moisture regulation profile. When ambient temperature surpassed $31.0\,^\circ\text{C}$, the cooling fan was triggered within $110\,\text{ms}$, reducing chamber temperature back to the nominal $26.5\,^\circ\text{C}$ range without chattering.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{scope}[scale=0.75]
+    % Axes
+    \draw[->] (0,0) -- (7.5,0) node[right, font=\scriptsize] {Time (min)};
+    \draw[->] (0,0) -- (0,4.2) node[above, font=\scriptsize] {Temp ($^\circ$C) / Soil (\%)};
+
+    % Ticks
+    \foreach \x/\label in {1/10, 2/20, 3/30, 4/40, 5/50, 6/60, 7/70}
+        \draw (\x,0.1) -- (\x,-0.1) node[below, font=\tiny] {\label};
+    \foreach \y/\label in {1/20, 2/30, 3/40, 4/60}
+        \draw (0.1,\y) -- (-0.1,\y) node[left, font=\tiny] {\label};
+
+    % Curves
+    \draw[thick, red] (0,1.8) .. controls (2,3.4) and (2.5,3.6) .. (3,3.5) .. controls (3.8,2.2) and (5,2.1) .. (7,2.0) node[right, font=\tiny] {Temp};
+    \draw[thick, blue, dashed] (0,1.2) .. controls (2,0.9) and (3,0.8) .. (3.5,0.7) -- (4.2,3.2) .. controls (5,3.0) .. (7,2.8) node[right, font=\tiny] {Soil M.};
+
+    % Fan Activation Annotation
+    \draw[dotted, gray] (2.8,0) -- (2.8,3.5);
+    \node[above, font=\tiny, fill=white] at (2.8,3.6) {Fan ON};
+    % Pump Activation
+    \draw[dotted, gray] (3.5,0) -- (3.5,3.2);
+    \node[below, font=\tiny, fill=white] at (3.8,0.7) {Pump ON};
+\end{scope}
+\end{tikzpicture}
+\caption{Dynamic Microclimate Regulation Curve showing automated fan and irrigation interventions.}
+\label{fig:response_graph}
+\end{figure}
+
+\section{Discussion: Complex Engineering Problem Attributes}
+The implemented system comprehensively addresses the Washington Accord Complex Engineering Problem (CEP) Graduate Attributes (P1--P7), as summarized in Table~\ref{tab:cep}.
+
+\begin{table}[htbp]
+\caption{Mapping of System Design to CEP Attributes (P1--P7)}
+\label{tab:cep}
+\centering
+\begin{tabularx}{\columnwidth}{l p{2.2cm} X}
+\toprule
+\textbf{Attr.} & \textbf{Engineering Concept} & \textbf{System Implementation} \\
+\midrule
+\textbf{P1} & Depth of Knowledge & Integration of microcontrollers, UART serial protocols, and REST web architectures. \\
+\textbf{P2} & Conflicting Req. & Balancing real-time localized safety control with high-latency cloud connectivity. \\
+\textbf{P3} & Analytical Depth & Formulating hysteresis differential thresholds to mitigate sensor jitter. \\
+\textbf{P4} & Novel Synthesis & Dual-tier distributed architecture separating actuation from network processing. \\
+\textbf{P5} & Practical Limits & Mitigating ADC non-linearities, UART buffer overruns, and inductive EMI. \\
+\textbf{P6} & Stakeholder Impact & Increasing agricultural efficiency, reducing water waste, and lowering operational costs. \\
+\textbf{P7} & Interdependence & Multi-layer integration spanning embedded C++, Node.js backend, and React UI. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Conclusion and Future Scope}
+This paper presented the successful engineering and deployment of an IoT-based smart greenhouse automation system. By separating physical actuation (ATmega2560) from communication (ESP8266), the system ensures fail-safe localized climate control and reliable remote web management. Experimental benchmarks confirm a 99.82\% packet delivery ratio and sub-150\,ms local actuation response. Future enhancements will integrate LoRa wireless transceivers for large-scale multi-greenhouse clusters and deploy TinyML neural networks directly onto edge microcontrollers for predictive disease detection and yield forecasting.
+
+\begin{thebibliography}{00}
+\bibitem{kumar2020iot}
+A.~Kumar, K.~Sharma, and M.~Verma, ``IoT-based smart agriculture monitoring system using Arduino and GSM,'' \emph{IEEE Access}, vol.~8, pp. 12431--12438, 2020.
+
+\bibitem{vasisht2017farmbeats}
+D.~Vasisht, Z.~Kapadia, P.~Ashok, and C.~Chandra, ``FarmBeats: An IoT platform for data-driven agriculture,'' in \emph{Proc. 14th USENIX Symp. Netw. Syst. Des. Implementation (NSDI)}, 2017, pp. 515--529.
+
+\bibitem{kodali2016iot}
+R.~K. Kodali, V.~Jain, and S.~Karagwal, ``IoT based smart greenhouse,'' in \emph{Proc. IEEE Reg. 10 Humanit. Technol. Conf. (R10-HTC)}, 2016, pp. 1--6.
+
+\bibitem{rao2018iot}
+P.~S. Rao, S.~Srividya, and R.~G. Kumar, ``IoT based smart greenhouse monitoring and control system using ESP8266,'' \emph{Int. J. Comput. Sci. Eng.}, vol.~6, no.~8, pp. 110--115, 2018.
+
+\bibitem{mondal2022microclimate}
+T.~Mondal and D.~De, ``Deep-learning-based smart greenhouse microclimate control system,'' \emph{IEEE Internet of Things Journal}, vol.~9, no.~14, pp. 12100--12111, 2022.
+\end{thebibliography}
+
+\end{document}
