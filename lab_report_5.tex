@@ -1,0 +1,315 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,listings,breakable}
+
+% Colors matching the original report design
+\definecolor{primaryblue}{RGB}{18, 52, 102}
+\definecolor{headergray}{RGB}{70, 70, 70}
+\definecolor{codegray}{RGB}{248, 249, 250}
+\definecolor{bordergray}{RGB}{218, 224, 233}
+\definecolor{commentgreen}{RGB}{0, 128, 0}
+\definecolor{keywordblue}{RGB}{0, 0, 255}
+\definecolor{stringred}{RGB}{163, 21, 21}
+
+% Hyperref setup
+\hypersetup{
+    colorlinks=true,
+    linkcolor=primaryblue,
+    urlcolor=primaryblue,
+    citecolor=primaryblue
+}
+
+% Section formatting
+\titleformat{\section}
+  {\Large\bfseries\color{primaryblue}}
+  {\thesection.}{0.5em}{}
+\titlespacing*{\section}{0pt}{1.5ex plus 0.5ex minus 0.2ex}{1ex plus 0.2ex}
+
+\titleformat{\subsection}
+  {\large\bfseries\color{primaryblue}}
+  {\thesubsection}{0.5em}{}
+\titlespacing*{\subsection}{0pt}{1.2ex plus 0.4ex minus 0.2ex}{0.8ex plus 0.2ex}
+
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\color{primaryblue}}
+  {}{0em}{}
+\titlespacing*{\subsubsection}{0pt}{1ex plus 0.3ex minus 0.2ex}{0.5ex plus 0.2ex}
+
+% Code box style
+\lstdefinestyle{pythonstyle}{
+    language=Python,
+    backgroundcolor=\color{codegray},
+    basicstyle=\ttfamily\footnotesize,
+    keywordstyle=\color{keywordblue}\bfseries,
+    commentstyle=\color{commentgreen}\itshape,
+    stringstyle=\color{stringred},
+    breaklines=true,
+    breakatwhitespace=true,
+    showstringspaces=false,
+    tabsize=4,
+    frame=none,
+    numbers=none
+}
+
+\newtcolorbox{codeblock}{
+    colback=codegray,
+    colframe=bordergray,
+    boxrule=0.8pt,
+    arc=3pt,
+    left=8pt,
+    right=8pt,
+    top=8pt,
+    bottom=8pt,
+    breakable
+}
+
+\setlist[itemize]{leftmargin=1.5em, itemsep=3pt, topsep=3pt}
+
+\begin{document}
+
+% ==================== COVER PAGE ====================
+\begin{titlepage}
+    \centering
+    \vspace*{0.3cm}
+    
+    \includegraphics[width=3.2cm]{uiu_logo.png}\\[0.4cm]
+    
+    {\LARGE \bfseries \color{primaryblue} United International University}\\[0.2cm]
+    {\large \color{headergray} Department of Computer Science and Engineering}\\[1.2cm]
+    
+    {\Huge \bfseries \color{primaryblue} LAB REPORT 5}\\[0.3cm]
+    {\large \color{headergray} Embedded Systems \& Computer Vision Engineering}\\[0.8cm]
+    
+    {\color{primaryblue}\rule{\linewidth}{2.5pt}}\\[1.2cm]
+    
+    \begin{flushleft}
+    \renewcommand{\arraystretch}{1.6}
+    \begin{tabular}{@{}p{4.2cm} p{10.0cm}@{}}
+        \textbf{Course Code:} & CSE 4326 \\
+        \textbf{Course Title:} & Microprocessors \& Microcontrollers Laboratory \\
+        \textbf{Experiment No:} & 05 \\
+        \textbf{Submission Date:} & October 4, 2026 \\
+        \textbf{Submitted To:} & \textbf{Kazi Abdun Noor} \\
+        & Lecturer, Department of CSE, UIU \\[0.2cm]
+        \textbf{Submitted By:} & \textbf{Anik Roy} \\
+        & Student ID: 0112320074 \\
+        & Section: F \\
+        & Department of Computer Science and Engineering
+    \end{tabular}
+    \end{flushleft}
+    
+    \vfill
+\end{titlepage}
+
+\newpage
+\pagenumbering{arabic}
+
+% ==================== SECTION 1: OBJECTIVES ====================
+\section{Objectives}
+\begin{itemize}
+    \item To implement live camera streaming using a Raspberry Pi Camera module and a mobile device webcam via Python.
+    \item To design a conceptual edge-computing pipeline deploying optimized custom Machine Learning models onto resource-constrained microcontrollers (ESP32-CAM) via TinyML framework workflow tools.
+    \item To critically differentiate machine learning architecture runtimes from source program logic execution, analyzing the step-by-step frame preprocessing pipeline within TensorFlow Lite detection scripts.
+\end{itemize}
+
+\vspace{0.8cm}
+
+% ==================== SECTION 2: COMPONENTS ====================
+\section{Components}
+
+\noindent \textbf{\large Hardware Components:}
+\begin{itemize}
+    \item Raspberry Pi 4 Model B (Single Board Computer)
+    \item Raspberry Pi Camera Module V2 (or compatible CSI ribbon-interfaced camera)
+    \item ESP32-CAM Development Board (with OV2640 camera sensor)
+    \item Smartphone/Mobile Device (equipped with a high-resolution camera)
+    \item FTDI USB-to-TTL Serial Adapter (for flashing binary files to the ESP32 chip)
+    \item Local Workstation Host Machine (equipped with an x86/ARM CPU for intensive ML model compilation)
+\end{itemize}
+
+\vspace{0.4cm}
+\noindent \textbf{\large Software \& Libraries:}
+\begin{itemize}
+    \item Thonny Integrated Development Environment (IDE)
+    \item OpenCV-Python framework (\texttt{cv2} package library runtime context)
+    \item TensorFlow Lite (TFLite) Micro framework and interpreter binaries
+    \item Arduino IDE or PlatformIO Toolchain (configured with ESP32 board support packages)
+    \item Edge Impulse Studio Web Platform / Google Colab cloud-hosted Jupyter Notebook workspace
+    \item IP Webcam application (or equivalent RTSP/HTTP network video streaming mobile layer software)
+\end{itemize}
+
+\vspace{0.8cm}
+
+% ==================== SECTION 3: THEORETICAL BACKGROUND ====================
+\section{Theoretical Background}
+
+Computer Vision at the edge requires balancing computing overhead with processing speed. Standard video pipelines rely on continuous matrix captures where images are converted into multi-dimensional NumPy arrays for real-time alterations. However, resource-limited IoT units like the ESP32 microcontroller cannot execute massive deep learning graphs due to strict RAM constraints (typically limited to 520 KB SRAM plus optional external PSRAM).
+
+To solve this restriction, \textbf{TinyML} bridges the gap by optimizing, pruning, and quantizing machine learning layers from 32-bit floating-point weights down to space-saving 8-bit integers. This reduces model footprints by up to 75\% without severe loss in target operational metric accuracy. TensorFlow Lite Micro handles this translation, executing isolated inferences locally directly on edge hardware nodes.
+
+\newpage
+
+% ==================== SECTION 4: PROBLEM TASKS SOLUTIONS ====================
+\section{Problem Tasks Solutions}
+
+\subsection*{Task 1: Python Live Video Streaming Code via Thonny}
+
+\subsubsection*{Part A: Raspberry Pi Camera Live Streaming Script}
+
+\begin{codeblock}
+\begin{lstlisting}[style=pythonstyle]
+import cv2
+
+# Initialize camera capture using the default interface index
+cap = cv2.VideoCapture(0)
+
+if not cap.isOpened():
+    print('Error: Could not open the Raspberry Pi camera module.')
+    exit()
+
+print('Streaming live Pi video... Press q on the active window to stop.')
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        print('Error: Failed to fetch visual frame buffer matrix object.')
+        break
+
+    # Render image matrix inside named GUI container interface window
+    cv2.imshow('Raspberry Pi Live Stream Output', frame)
+
+    # Standard keystroke evaluation masked register structure evaluation
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# Graceful cleanup execution loop
+cap.release()
+cv2.destroyAllWindows()
+\end{lstlisting}
+\end{codeblock}
+
+\vspace{0.6cm}
+
+\subsubsection*{Part B: Mobile Camera (Webcam Link IP Port) Script}
+
+\begin{codeblock}
+\begin{lstlisting}[style=pythonstyle]
+import cv2
+
+# Replace with the exact stream URL generated by your smartphone app (e.g., IP Webcam)
+mobile_stream_url = 'http://192.168.1.50:8080/video'
+
+# Initialize stream extraction via remote network video resource stream parser context
+cap = cv2.VideoCapture(mobile_stream_url)
+
+if not cap.isOpened():
+    print('Error: Unable to connect to the mobile camera network stream port.')
+    exit()
+
+print('Streaming live Mobile Video... Press q to terminate.')
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        print('Error: Disconnected from active stream endpoint source.')
+        break
+
+    cv2.imshow('Mobile Webcam Stream Output', frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+\end{lstlisting}
+\end{codeblock}
+
+\newpage
+
+\subsection*{Task 2: Detailed Deployment Pipeline of Custom ML Model on ESP32-CAM via TinyML}
+
+Implementing a custom face identification employee security system on an ESP32-CAM board requires converting a large computer model into a highly compact version that can run directly on edge hardware. Below is the complete step-by-step deployment guide:
+
+\vspace{0.3cm}
+
+\noindent \textbf{Step 1: Dataset Generation and Acquisition}\\
+Capture high-resolution face images of all registered company employees (authorized class) alongside a diverse set of non-employee faces (unauthorized class). Crop and resize these source pictures into uniform pixel matrices (e.g., $96\times96$ or $128\times128$ pixels) and convert them to grayscale to minimize memory footprint. Reference documentation on building edge vision inputs can be found on the \href{https://docs.edgeimpulse.com/}{Edge Impulse Platform Documentation Portal}.
+
+\vspace{0.3cm}
+
+\noindent \textbf{Step 2: Model Architecture Formulation and Local Optimization Training}\\
+Train a compact Convolutional Neural Network (CNN) using MobileNetV1/V2 blocks on your local computer or via cloud platforms like Google Colab. Once training yields high accuracy, save the graph configuration files. To fit the microcontroller's limited memory, use the TensorFlow Lite Optimizing Toolkit to apply Post-Training Quantization. This scales down 32-bit floating weights into tight 8-bit fixed integers, shrinking the final file size by roughly 4x. Detailed steps are outlined in the \href{https://www.tensorflow.org/lite/microcontrollers}{TensorFlow Lite Micro Developer Guide}.
+
+\vspace{0.3cm}
+
+\noindent \textbf{Step 3: Exporting Model to C++ Byte Array Structure Format}\\
+Since microcontrollers cannot parse raw \texttt{.tflite} model files directly, you must convert the quantized model into a C++ source structure. Use standard terminal utilities (like the \texttt{xxd} command tool) to dump the file contents into a hex array buffer macro definitions inside a standalone header file (e.g., \texttt{model\_data.h}). This allows the microcontroller to load the model into its internal flash memory as a static byte array. Refer to the \href{https://github.com/tensorflow/tflite-micro}{TensorFlow Lite Micro Open Repository} for template scripts.
+
+\vspace{0.3cm}
+
+\noindent \textbf{Step 4: Developing Embedded Firmware and Loading the Model Architecture}\\
+Open the Arduino IDE or PlatformIO toolchain and initialize an ESP32 application sketch file wrapper. Include the required framework runtime libraries (\texttt{TensorFlowLite.h}) along with your custom model header asset. Allocate a dedicated continuous memory chunk, known as a \textit{tensor arena} (typically around 60\,KB to 200\,KB), to hold the intermediate calculations during processing. Initialize an instance of the \texttt{MicroInterpreter} runtime object, linking it directly to your raw compiled array buffer. Step-by-step installation guides can be referenced via the official \href{https://docs.espressif.com/projects/esp-idf/en/latest/esp32/}{Espressif ESP32 Reference Guide}.
+
+\vspace{0.3cm}
+
+\noindent \textbf{Step 5: Configuring Peripheral Sensors and Processing Live Video Inferences}\\
+Configure the ESP32-CAM peripheral pins to fetch active live frame matrices using the built-in OV2640 camera driver. Write preprocessing functions to convert the camera's raw RGB or JPEG frames to match the model's exact input format (e.g., $96\times96$ grayscale). Pass this processed frame array directly into the \texttt{MicroInterpreter} input tensor channel and trigger \texttt{Invoke()}. The model outputs class prediction confidence arrays; if the target employee index scores above a set threshold (e.g., $>85\%$), trigger the security gate output pin. For practical examples, check out the \href{https://github.com/}{Manjit Baishya TinyML ESP32 Publication Tutorial}.
+
+\newpage
+
+\subsection*{Task 3: Analysis of Step 2 vs. Step 5 Model Download Separations}
+
+In Experiment 4, the repository downloaded in Step 2 and the model file downloaded in Step 5 serve two completely different purposes in a machine learning pipeline:
+
+\begin{enumerate}[label=\textbf{\arabic*.}]
+    \item \textbf{Code Repository (Step 2):} This contains the execution logic, user interface scripts, and data pipeline management files. These Python scripts (\texttt{TFLite\_detection\_webcam.py}) outline the overall process: how to configure camera hardware frames, how to set up window displays, and how to pass arrays between modules. However, this source code is completely 'empty' regarding actual intelligence; it does not contain the learned weights needed to recognize real-world items.
+    
+    \item \textbf{ML Model Graph File (Step 5):} This file (e.g., \texttt{detect.tflite}) contains the actual brain of the system. It holds the mathematical matrix weights, filter biases, and structural layer configurations that were learned during hours of training on massive cloud datasets (like COCO).
+\end{enumerate}
+
+\noindent \textbf{Conclusion:} The Python script acts as the structural framework (the engine), while the TFLite model data file acts as the knowledge base (the fuel). Keeping them separate allows developers to easily swap out models (e.g., switching from detecting cars to identifying faces) without modifying the underlying camera configuration and application code.
+
+\vspace{0.8cm}
+
+\subsection*{Task 4: Frame Evaluation Pipeline in TFLite\_detection\_webcam.py}
+
+When live video runs through \texttt{TFLite\_detection\_webcam.py}, the image frames undergo a structured four-stage processing pipeline to perform object detection:
+
+\vspace{0.3cm}
+
+\noindent \textbf{Stage 1: Frame Ingestion and Hardware Normalization}\\
+The script initiates a continuous capture loop using the OpenCV backend layer framework. Raw matrix frames are pulled frame-by-frame from the device buffer. Since OpenCV reads frames in BGR format by default, the script converts them to the RGB color space required by standard TFLite models using color conversion utilities.
+
+\vspace{0.3cm}
+
+\noindent \textbf{Stage 2: Spatial Resizing and Data Type Quantization}\\
+Every deep learning network expects a fixed entry window dimensions dimension array. The raw camera frame is resized (commonly to $300\times300$ pixels) using interpolation functions. Depending on the model's type, the pixel values are either normalized to floating-point values between 0.0 and 1.0, or cast to 8-bit integers to match the quantization profile of the network. Finally, a batch dimension is added to reshape the data into a 4D array (e.g., \texttt{[1, 300, 300, 3]}), matching the expected tensor signature.
+
+\vspace{0.3cm}
+
+\noindent \textbf{Stage 3: Running Inference via the TFLite Interpreter Engine}\\
+The processed image matrix is loaded directly into the interpreter's input tensor channel using dedicated allocation bindings. The script then triggers the engine's prediction function (\texttt{interpreter.invoke()}). This passes the pixel array through the network's layers, calculating spatial features to detect target objects within the scene.
+
+\vspace{0.3cm}
+
+\noindent \textbf{Stage 4: Parsing Output Tensors and Rendering Overlays}\\
+Once processing finishes, the script reads four distinct output array pointers from the model: bounding box coordinates, class index IDs, detection confidence scores, and the total object count. The script filters through these arrays, ignoring any detections below a specified confidence threshold (like 50\%). For valid objects, the relative coordinates are scaled back to match the original window dimensions. OpenCV then draws bounding boxes and overlays text labels onto the live video frame before rendering the final result on screen.
+
+\newpage
+
+% ==================== SECTION 5: DISCUSSION ====================
+\section{Discussion}
+
+This lab experiment provided valuable hands-on experience in deploying computer vision applications across different hardware platforms, from standard computers to resource-constrained IoT devices. Developing the camera streaming scripts highlighted the practical differences between local hardware interfaces and network-based stream parsing protocols. Working with TinyML and exploring the ESP32-CAM workflow demonstrated the importance of model optimization techniques, like post-training quantization, for running models on low-power edge devices. A major challenge encountered during setup was resolving package version mismatches between the Python environment and the specific runtime requirements of the TensorFlow Lite Interpreter. Additionally, calibrating confidence thresholds was crucial to minimize false positives caused by environmental lighting changes. Ultimately, this experiment provided deep insights into the end-to-end engineering pipeline required to build and optimize real-world smart vision systems.
+
+\end{document}
+

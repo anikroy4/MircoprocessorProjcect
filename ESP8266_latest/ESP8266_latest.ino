@@ -28,7 +28,7 @@
 // ── Wi-Fi & Backend Configuration ────────────────────────────
 const char* WIFI_SSID     = "Roy";
 const char* WIFI_PASSWORD = "Blackdevil0007";
-const char* BACKEND_HOST  = "192.168.68.109";
+const char* BACKEND_HOST  = "192.168.68.106";
 const int   BACKEND_PORT  = 5000;
 
 ESP8266WebServer server(80);
